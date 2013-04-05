@@ -171,6 +171,50 @@ static struct s3c2410_platform_nand tiny6410_nand_info = {
 	.sets		= tiny6410_nand_sets,
 };
 
+/*
+ * Configuring Nandflash on SMDK6410
+ */
+struct mtd_partition ok6410_nand_part[] = {
+	{
+		.name		= "Bootloader",
+		.offset		= 0,
+		.size		= (2 * SZ_1M),
+		.mask_flags	= MTD_CAP_NANDFLASH,
+	},
+	{
+		.name		= "Kernel",
+		.offset		= (2 * SZ_1M),
+		.size		= (5*SZ_1M) ,
+		.mask_flags	= MTD_CAP_NANDFLASH,
+	},
+	{
+		.name		= "User",
+		.offset		= (7 * SZ_1M),
+		.size		= (200*SZ_1M) ,
+	},
+	{
+		.name		= "File System",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= MTDPART_SIZ_FULL,
+	}
+};
+
+static struct s3c2410_nand_set ok6410_nand_sets[] = {
+	[0] = {
+		.name       = "nand",
+		.nr_chips   = 1,
+		.nr_partitions  = ARRAY_SIZE(ok6410_nand_part),
+		.partitions = ok6410_nand_part,
+	},
+};
+
+static struct s3c2410_platform_nand ok6410_nand_info = {
+	.tacls      = 25,
+	.twrph0     = 55,
+	.twrph1     = 40,
+	.nr_sets    = ARRAY_SIZE(ok6410_nand_sets),
+	.sets       = ok6410_nand_sets,
+};
 /* LEDS */
 static struct gpio_led tiny6410_led_list[] = {
 	{
@@ -874,7 +918,7 @@ static void __init tiny6410_machine_init(void)
 		tiny6410_lcd_pdata.win[0]->win_mode.xres,
 		tiny6410_lcd_pdata.win[0]->win_mode.yres);
 
-	s3c_nand_set_platdata(&tiny6410_nand_info);
+	s3c_nand_set_platdata(&ok6410_nand_info);
 	s3c_fb_set_platdata(&tiny6410_lcd_pdata);
 	s3c_sdhci0_set_platdata(&tiny6410_hsmmc0_pdata);
 	s3c_sdhci1_set_platdata(&tiny6410_hsmmc1_pdata);
