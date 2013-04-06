@@ -356,7 +356,7 @@ static void s3c24xx_serial_set_mctrl(struct uart_port *port, unsigned int mctrl)
 		umcon |= S3C2410_UMCOM_AFC;
 	else
 		umcon &= ~S3C2410_UMCOM_AFC;
-
+	if(port->line!=0)
 	wr_regl(port, S3C2410_UMCON, umcon);
 }
 
