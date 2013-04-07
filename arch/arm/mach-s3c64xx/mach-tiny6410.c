@@ -264,12 +264,12 @@ static struct platform_device tiny6410_leds = {
 static struct s3c_fb_pd_win tiny6410_fb_win[] = {
 	{
 		.win_mode	= {	/* 4.3" 480x272 */
-			.left_margin	= 45,
-			.right_margin	= 4,
-			.upper_margin	= 3,
+			.left_margin	= 2,
+			.right_margin	= 2,
+			.upper_margin	= 2,
 			.lower_margin	= 2,
-			.hsync_len	= 40,
-			.vsync_len	= 6,
+			.hsync_len	= 41,
+			.vsync_len	= 10,
 			.xres		= 480,
 			.yres		= 272,
 		},
@@ -297,16 +297,16 @@ static struct s3c_fb_platdata tiny6410_lcd_pdata __initdata = {
 	.setup_gpio	= s3c64xx_fb_gpio_setup_24bpp,
 	.win[0]		= &tiny6410_fb_win[0],
 	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
-	.vidcon1	= VIDCON1_INV_VCLK,
+	.vidcon1	= VIDCON1_INV_VSYNC|VIDCON1_INV_HSYNC,
 };
 
 static void tiny6410_lcd_power_set(struct plat_lcd_data *pd,
 				   unsigned int power)
 {
 	if (power)
-		gpio_direction_output(S3C64XX_GPE(0), 1);
+		gpio_direction_output(S3C64XX_GPE(14), 1);
 	else
-		gpio_direction_output(S3C64XX_GPE(0), 0);
+		gpio_direction_output(S3C64XX_GPE(14), 0);
 }
 
 static struct plat_lcd_data tiny6410_lcd_power_data = {
@@ -943,7 +943,7 @@ static void __init tiny6410_machine_init(void)
 		(4 << S3C64XX_SROM_BCX__TCOS__SHIFT) |
 		(0 << S3C64XX_SROM_BCX__TACS__SHIFT), S3C64XX_SROM_BC1);
 
-	gpio_request(S3C64XX_GPE(0), "LCD power");
+	gpio_request(S3C64XX_GPE(14), "LCD power");
 
 	/* Setup power domains */
 	s3c_device_fb.dev.parent = &s3c64xx_device_pd[S3C64XX_DOMAIN_F].dev;
