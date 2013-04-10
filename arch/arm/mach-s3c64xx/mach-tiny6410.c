@@ -184,12 +184,12 @@ struct mtd_partition ok6410_nand_part[] = {
 	{
 		.name		= "Kernel",
 		.offset		= (2 * SZ_1M),
-		.size		= (5*SZ_1M) ,
+		.size		= (7*SZ_1M) ,
 		.mask_flags	= MTD_CAP_NANDFLASH,
 	},
 	{
 		.name		= "User",
-		.offset		= (7 * SZ_1M),
+		.offset		= (9 * SZ_1M),
 		.size		= (200*SZ_1M) ,
 	},
 	{
