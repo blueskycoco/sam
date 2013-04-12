@@ -34,6 +34,7 @@
 #include <linux/leds.h>
 #include <linux/memory_alloc.h>
 #include <linux/memblock.h>
+#include <linux/clk.h>
 
 #include <linux/usb/android_composite.h>
 #include <linux/usb/ch9.h>
@@ -829,7 +830,8 @@ static void __init tiny6410_map_io(void)
 	s3c64xx_init_io(NULL, 0);
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(tiny6410_uartcfgs, ARRAY_SIZE(tiny6410_uartcfgs));
-
+	struct clk *clkdhost=clk_get(NULL,"dhost");
+	clk_enable(clkdhost);
 	/* set the LCD type */
 	tmp = __raw_readl(S3C64XX_SPCON);
 	tmp &= ~S3C64XX_SPCON_LCD_SEL_MASK;
@@ -840,6 +842,7 @@ static void __init tiny6410_map_io(void)
 	tmp = __raw_readl(S3C64XX_MODEM_MIFPCON);
 	tmp &= ~MIFPCON_LCD_BYPASS;
 	__raw_writel(tmp, S3C64XX_MODEM_MIFPCON);
+	clk_disable(clkdhost);
 }
 
 /*
@@ -849,6 +852,7 @@ static void __init tiny6410_map_io(void)
  *
  */
 static char tiny6410_features_str[12] __initdata = "0";
+
 
 static int __init tiny6410_features_setup(char *str)
 {
