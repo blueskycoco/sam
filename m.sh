@@ -1,4 +1,4 @@
 #!/bin/sh
 
 make modules
-cp drivers/video/s3c-fb.ko ~/tftpboot
+cp drivers/media/video/s3c-jpeg/s3c-jpeg.ko ~/tftpboot
