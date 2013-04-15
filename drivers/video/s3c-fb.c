@@ -67,6 +67,7 @@ struct s3c_fb;
 #define VIDOSD_C(win, variant) (OSD_BASE(win, variant) + 0x08)
 #define VIDOSD_D(win, variant) (OSD_BASE(win, variant) + 0x0C)
 
+
 /**
  * struct s3c_fb_variant - fb variant information
  * @is_2443: Set if S3C2443/S3C2416 style hardware.
@@ -103,7 +104,19 @@ struct s3c_fb_variant {
 	unsigned int	has_prtcon:1;
 	unsigned int	has_shadowcon:1;
 };
-
+struct s3c_fb_osd {
+	u32		width;
+	u32		height;
+	u32		position_x;	/*video window's x psition control register*/
+	u32		position_y;	/*video window's x psition control register*/
+	u32		bits_per_pixel;
+	u32		alpha;	/*video window's x alpha value*/
+	u32		color_key;	/*video window's x color key value*/
+	u32		comp_key;	/*video window's x color key value*/
+};
+#define S3CFB_OSD_START         _IO  ('F', 201)
+#define S3CFB_OSD_STOP          _IO  ('F', 202)
+#define S3CFB_OSD_CONFIG      	_IOW ('F', 203,struct s3c_fb_osd)
 /**
  * struct s3c_fb_win_variant
  * @has_osd_c: Set if has OSD C register.
@@ -391,8 +404,9 @@ static void vidosd_set_size(struct s3c_fb_win *win, u32 size)
 
 	/* OSD can be set up if osd_size_off != 0 for this window */
 	if (win->variant.osd_size_off)
-		writel(size, sfb->regs + OSD_BASE(win->index, sfb->variant)
-				+ win->variant.osd_size_off);
+	{	
+		writel(size, sfb->regs + OSD_BASE(win->index, sfb->variant) + win->variant.osd_size_off);
+	}
 }
 
 /**
@@ -406,9 +420,52 @@ static void vidosd_set_alpha(struct s3c_fb_win *win, u32 alpha)
 	struct s3c_fb *sfb = win->parent;
 
 	if (win->variant.has_osd_alpha)
+	{
 		writel(alpha, sfb->regs + VIDOSD_C(win->index, sfb->variant));
+		sfb->pdata->alpha[win->index-1]=alpha;
+	}
 }
+static void vidosd_set_position(struct s3c_fb_win *win,u32 position_x,u32 position_y,u32 xres,u32 yres,u32 bits_per_pixel)
+{
+	struct s3c_fb *sfb = win->parent;
+	if(position_x > 0 && position_y > 0)
+	{
+		u32 data = VIDOSDxA_TOPLEFT_X(position_x) | VIDOSDxA_TOPLEFT_Y(position_y);
+		writel(data, sfb->regs + VIDOSD_A(win->index, sfb->variant));
+		sfb->pdata->position_x[win->index-1]=position_x;
+		sfb->pdata->position_y[win->index-1]=position_y;
+	}
+	if(xres>0 && yres>0 && bits_per_pixel)
+	{
+		u32 data = VIDOSDxB_BOTRIGHT_X(s3c_fb_align_word(bits_per_pixel,xres - 1)) | VIDOSDxB_BOTRIGHT_Y(yres - 1);
+		writel(data, sfb->regs + VIDOSD_B(win->index, sfb->variant));
+		vidosd_set_size(win,xres*yres);
+		sfb->pdata->win[win->index-1]->win_mode.xres=xres;
+		sfb->pdata->win[win->index-1]->win_mode.yres=yres;
+	}
+}
+static void vidosd_set_color_comp_key(struct s3c_fb_win *win,u32 color_key,u32 comp_key)
+{
+	struct s3c_fb *sfb = win->parent;
+	u32 keycon0_data = 0, keycon1_data = 0;
+	void __iomem *keycon = sfb->regs + sfb->variant.keycon;
+	keycon += (win->index - 1) * 8;
+	if(comp_key>0)
+	{
+		keycon0_data = ~(WxKEYCON0_KEYBL_EN |
+			WxKEYCON0_KEYEN_F |
+			WxKEYCON0_DIRCON) | WxKEYCON0_COMPKEY(comp_key);
 
+		writel(keycon0_data, keycon + WKEYCON0);
+		sfb->pdata->comp_key[win->index-1]=comp_key;
+	}
+	if(color_key>0)
+	{
+		keycon1_data = WxKEYCON1_COLVAL(color_key);
+		writel(keycon1_data, keycon + WKEYCON1);
+		sfb->pdata->comp_key[win->index-1]=comp_key;
+	}
+}
 /**
  * shadow_protect_win() - disable updating values from shadow registers at vsync
  *
@@ -547,7 +604,7 @@ static int s3c_fb_set_par(struct fb_info *info)
 
 	/* write 'OSD' registers to control position of framebuffer */
 
-	data = VIDOSDxA_TOPLEFT_X(0) | VIDOSDxA_TOPLEFT_Y(0);
+	data = VIDOSDxA_TOPLEFT_X(sfb->pdata->position_x[win_no-1]) | VIDOSDxA_TOPLEFT_Y(sfb->pdata->position_y[win_no-1]);
 	writel(data, regs + VIDOSD_A(win_no, sfb->variant));
 
 	data = VIDOSDxB_BOTRIGHT_X(s3c_fb_align_word(var->bits_per_pixel,
@@ -558,9 +615,9 @@ static int s3c_fb_set_par(struct fb_info *info)
 
 	data = var->xres * var->yres;
 
-	alpha = VIDISD14C_ALPHA1_R(0xf) |
-		VIDISD14C_ALPHA1_G(0xf) |
-		VIDISD14C_ALPHA1_B(0xf);
+	alpha = VIDISD14C_ALPHA1_R((sfb->pdata->alpha[win_no-1]&0xf800)>>11) |
+		VIDISD14C_ALPHA1_G((sfb->pdata->alpha[win_no-1]&0x07e0)>>5) |
+		VIDISD14C_ALPHA1_B((sfb->pdata->alpha[win_no-1]&0x001f)>>0);
 
 	vidosd_set_alpha(win, alpha);
 	vidosd_set_size(win, data);
@@ -571,7 +628,7 @@ static int s3c_fb_set_par(struct fb_info *info)
 		data |= SHADOWCON_CHx_ENABLE(win_no);
 		writel(data, sfb->regs + SHADOWCON);
 	}
-
+    if(win_no==sfb->pdata->default_win)
 	data = WINCONx_ENWIN;
 
 	/* note, since we have to round up the bits-per-pixel, we end up
@@ -638,9 +695,9 @@ static int s3c_fb_set_par(struct fb_info *info)
 
 		keycon0_data = ~(WxKEYCON0_KEYBL_EN |
 				WxKEYCON0_KEYEN_F |
-				WxKEYCON0_DIRCON) | WxKEYCON0_COMPKEY(0);
+				WxKEYCON0_DIRCON) | WxKEYCON0_COMPKEY(sfb->pdata->comp_key[win_no-1]);
 
-		keycon1_data = WxKEYCON1_COLVAL(0xffffff);
+		keycon1_data = WxKEYCON1_COLVAL(sfb->pdata->color_key[win_no-1]);
 
 		keycon += (win_no - 1) * 8;
 
@@ -1009,7 +1066,7 @@ static int s3c_fb_ioctl(struct fb_info *info, unsigned int cmd,
 	struct s3c_fb *sfb = win->parent;
 	int ret;
 	u32 crtc;
-
+	struct s3c_fb_osd osd_info;
 	switch (cmd) {
 	case FBIO_WAITFORVSYNC:
 		if (get_user(crtc, (u32 __user *)arg)) {
@@ -1019,6 +1076,29 @@ static int s3c_fb_ioctl(struct fb_info *info, unsigned int cmd,
 
 		ret = s3c_fb_wait_for_vsync(sfb, crtc);
 		break;
+
+	case S3CFB_OSD_CONFIG:
+        if (copy_from_user(&osd_info, (struct s3c_fb_osd *) arg, sizeof(struct s3c_fb_osd)))
+            return -EFAULT;
+	    vidosd_set_position(win,osd_info.position_x,osd_info.position_y,osd_info.width,osd_info.height,osd_info.bits_per_pixel); 
+	    vidosd_set_color_comp_key(win,osd_info.color_key,osd_info.comp_key);
+	    if(osd_info.alpha>0)
+	    {
+		    vidosd_set_alpha(win,osd_info.alpha);
+	    }
+	    ret = 0;
+	break;
+
+	case S3CFB_OSD_START:
+		s3c_fb_blank(FB_BLANK_UNBLANK, info);
+		ret = 0;
+	break;
+	
+	case S3CFB_OSD_STOP:
+		s3c_fb_blank(FB_BLANK_POWERDOWN, info);
+		ret = 0;
+	break;
+
 	default:
 		ret = -ENOTTY;
 	}

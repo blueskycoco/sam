@@ -64,6 +64,13 @@ struct s3c_fb_platdata {
 	u32			 vidcon0;
 	u32			 vidcon1;
 	u32			 dithmode;
+/***************extend OSD function****************/
+	u32			 position_x[4];	/*video window's x psition control register*/
+	u32			 position_y[4];	/*video window's x psition control register*/
+	u32			 alpha[3];	/*video window's x alpha value*/
+	u32			 color_key[4];	/*video window's x color key value*/
+	u32			 comp_key[4];	/*video window's x color key value*/
+/***************extend OSD function****************/
 };
 
 /**
