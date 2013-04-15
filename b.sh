@@ -1,4 +1,4 @@
 #!/bin/sh
 
-make -j5
+make -j17
 cp arch/arm/boot/zImage ~/tftpboot

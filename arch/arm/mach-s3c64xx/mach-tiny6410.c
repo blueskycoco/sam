@@ -34,6 +34,7 @@
 #include <linux/leds.h>
 #include <linux/memory_alloc.h>
 #include <linux/memblock.h>
+#include <linux/clk.h>
 
 #include <linux/usb/android_composite.h>
 #include <linux/usb/ch9.h>
@@ -278,24 +279,25 @@ static struct s3c_fb_pd_win tiny6410_fb_win[] = {
 		.virtual_y	= 544,
 	}, {
 		.win_mode	= {	/* 7.0" 800x480 */
-			.left_margin	= 8,
-			.right_margin	= 13,
-			.upper_margin	= 7,
-			.lower_margin	= 5,
-			.hsync_len	= 3,
-			.vsync_len	= 1,
-			.xres		= 800,
-			.yres		= 480,
+			.left_margin	= 2,
+			.right_margin	= 2,
+			.upper_margin	= 2,
+			.lower_margin	= 2,
+			.hsync_len	= 41,
+			.vsync_len	= 10,
+			.xres		= 480,
+			.yres		= 272,
 		},
 		.max_bpp	= 32,
 		.default_bpp	= 16,
-		.virtual_y	= 960,
+		.virtual_y	= 544,
 	},
 };
 
 static struct s3c_fb_platdata tiny6410_lcd_pdata __initdata = {
 	.setup_gpio	= s3c64xx_fb_gpio_setup_24bpp,
 	.win[0]		= &tiny6410_fb_win[0],
+	.win[1]		= &tiny6410_fb_win[1],
 	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
 	.vidcon1	= VIDCON1_INV_VSYNC|VIDCON1_INV_HSYNC,
 };
@@ -829,7 +831,8 @@ static void __init tiny6410_map_io(void)
 	s3c64xx_init_io(NULL, 0);
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(tiny6410_uartcfgs, ARRAY_SIZE(tiny6410_uartcfgs));
-
+	struct clk *clkdhost=clk_get(NULL,"dhost");
+	clk_enable(clkdhost);
 	/* set the LCD type */
 	tmp = __raw_readl(S3C64XX_SPCON);
 	tmp &= ~S3C64XX_SPCON_LCD_SEL_MASK;
@@ -840,6 +843,7 @@ static void __init tiny6410_map_io(void)
 	tmp = __raw_readl(S3C64XX_MODEM_MIFPCON);
 	tmp &= ~MIFPCON_LCD_BYPASS;
 	__raw_writel(tmp, S3C64XX_MODEM_MIFPCON);
+	clk_disable(clkdhost);
 }
 
 /*
@@ -849,6 +853,7 @@ static void __init tiny6410_map_io(void)
  *
  */
 static char tiny6410_features_str[12] __initdata = "0";
+
 
 static int __init tiny6410_features_setup(char *str)
 {
